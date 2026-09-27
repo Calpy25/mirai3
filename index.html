@@ -23,6 +23,8 @@
   #feedback-form textarea { min-height: 96px; resize: vertical; }
   #feedback-form button { align-self: flex-end; font: inherit; padding: 8px 24px; border: 0; border-radius: 4px; background: #222; color: #fff; cursor: pointer; }
   #feedback-form button:hover { background: #444; }
+  #feedback-form button:disabled { opacity: 0.5; cursor: default; }
+  #feedback-status { min-height: 1.2em; margin: 8px 0 0; font-size: 0.875rem; color: #d33; }
   #feedback-list { list-style: none; padding: 0; margin: 24px 0 0; }
   #feedback-list li { padding: 12px 0; border-bottom: 1px solid #eee; }
   #feedback-list .meta { font-size: 0.75rem; color: #888; }
@@ -42,8 +44,10 @@
     <textarea id="fb-text" maxlength="1000" required></textarea>
     <button type="submit">送信</button>
   </form>
+  <p id="feedback-status" role="status"></p>
   <ul id="feedback-list"></ul>
 </footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   const year = new Date().getFullYear() + 1;
   const today = new Date();
@@ -69,37 +73,65 @@
   }
   document.getElementById('calendar').innerHTML = html;
 
-  // ご意見板（投稿はこのブラウザの localStorage に保存）
-  const FB_KEY = 'calendar-feedback';
+  // ご意見板（Supabase の feedback テーブルに保存）
+  // Project Settings > API の「Project URL」と「anon public」キーを設定してください
+  const SUPABASE_URL = 'https://yjpdarqxginxdcbtwzud.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_Cf6DPV115prahdBZ1tbPdA_lLX9Roy5';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const fbForm = document.getElementById('feedback-form');
   const fbList = document.getElementById('feedback-list');
-  const loadFeedback = () => {
-    try { return JSON.parse(localStorage.getItem(FB_KEY)) || []; } catch (e) { return []; }
-  };
-  const renderFeedback = () => {
-    fbList.replaceChildren(...loadFeedback().map(f => {
+  const fbStatus = document.getElementById('feedback-status');
+
+  const renderFeedback = rows => {
+    fbList.replaceChildren(...rows.map(f => {
       const li = document.createElement('li');
       const meta = document.createElement('div');
       meta.className = 'meta';
-      meta.textContent = `${f.name}（${new Date(f.at).toLocaleString('ja-JP')}）`;
+      meta.textContent = `${f.name}（${new Date(f.created_at).toLocaleString('ja-JP')}）`;
       const body = document.createElement('p');
       body.className = 'body';
-      body.textContent = f.text;
+      body.textContent = f.message;
       li.append(meta, body);
       return li;
     }));
   };
-  document.getElementById('feedback-form').addEventListener('submit', e => {
+
+  const loadFeedback = async () => {
+    const { data, error } = await sb
+      .from('feedback')
+      .select('name, message, created_at')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) {
+      fbStatus.textContent = 'ご意見の読み込みに失敗しました。';
+      console.error(error);
+      return;
+    }
+    renderFeedback(data);
+  };
+
+  fbForm.addEventListener('submit', async e => {
     e.preventDefault();
     const name = document.getElementById('fb-name').value.trim();
-    const text = document.getElementById('fb-text').value.trim();
-    if (!name || !text) return;
-    const items = loadFeedback();
-    items.unshift({ name, text, at: Date.now() });
-    try { localStorage.setItem(FB_KEY, JSON.stringify(items)); } catch (err) {}
+    const message = document.getElementById('fb-text').value.trim();
+    if (!name || !message) return;
+
+    const button = fbForm.querySelector('button');
+    button.disabled = true;
+    fbStatus.textContent = '';
+    const { error } = await sb.from('feedback').insert({ name, message });
+    button.disabled = false;
+    if (error) {
+      fbStatus.textContent = '送信に失敗しました。時間をおいてもう一度お試しください。';
+      console.error(error);
+      return;
+    }
     document.getElementById('fb-text').value = '';
-    renderFeedback();
+    loadFeedback();
   });
-  renderFeedback();
+
+  loadFeedback();
 </script>
 </body>
 </html>
