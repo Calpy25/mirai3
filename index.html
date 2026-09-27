@@ -15,12 +15,35 @@
   .sun { color: #d33; }
   .sat { color: #36c; }
   .today { background: #222; color: #fff; border-radius: 50%; }
-  @media print { body { padding: 0; } }
+  footer { max-width: 600px; margin: 48px auto 0; padding-top: 24px; border-top: 1px solid #ddd; }
+  footer h2 { font-size: 1.1rem; margin-bottom: 12px; }
+  #feedback-form { display: flex; flex-direction: column; gap: 8px; }
+  #feedback-form label { font-size: 0.875rem; color: #555; }
+  #feedback-form input, #feedback-form textarea { font: inherit; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; width: 100%; }
+  #feedback-form textarea { min-height: 96px; resize: vertical; }
+  #feedback-form button { align-self: flex-end; font: inherit; padding: 8px 24px; border: 0; border-radius: 4px; background: #222; color: #fff; cursor: pointer; }
+  #feedback-form button:hover { background: #444; }
+  #feedback-list { list-style: none; padding: 0; margin: 24px 0 0; }
+  #feedback-list li { padding: 12px 0; border-bottom: 1px solid #eee; }
+  #feedback-list .meta { font-size: 0.75rem; color: #888; }
+  #feedback-list .body { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; }
+  @media print { body { padding: 0; } footer { display: none; } }
 </style>
 </head>
 <body>
 <h1 id="title"></h1>
 <div id="calendar"></div>
+<footer>
+  <h2>ご意見板</h2>
+  <form id="feedback-form">
+    <label for="fb-name">名前</label>
+    <input id="fb-name" type="text" maxlength="50" required>
+    <label for="fb-text">ご意見</label>
+    <textarea id="fb-text" maxlength="1000" required></textarea>
+    <button type="submit">送信</button>
+  </form>
+  <ul id="feedback-list"></ul>
+</footer>
 <script>
   const year = new Date().getFullYear() + 1;
   const today = new Date();
@@ -45,6 +68,38 @@
     html += '</tr></table></section>';
   }
   document.getElementById('calendar').innerHTML = html;
+
+  // ご意見板（投稿はこのブラウザの localStorage に保存）
+  const FB_KEY = 'calendar-feedback';
+  const fbList = document.getElementById('feedback-list');
+  const loadFeedback = () => {
+    try { return JSON.parse(localStorage.getItem(FB_KEY)) || []; } catch (e) { return []; }
+  };
+  const renderFeedback = () => {
+    fbList.replaceChildren(...loadFeedback().map(f => {
+      const li = document.createElement('li');
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = `${f.name}（${new Date(f.at).toLocaleString('ja-JP')}）`;
+      const body = document.createElement('p');
+      body.className = 'body';
+      body.textContent = f.text;
+      li.append(meta, body);
+      return li;
+    }));
+  };
+  document.getElementById('feedback-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = document.getElementById('fb-name').value.trim();
+    const text = document.getElementById('fb-text').value.trim();
+    if (!name || !text) return;
+    const items = loadFeedback();
+    items.unshift({ name, text, at: Date.now() });
+    try { localStorage.setItem(FB_KEY, JSON.stringify(items)); } catch (err) {}
+    document.getElementById('fb-text').value = '';
+    renderFeedback();
+  });
+  renderFeedback();
 </script>
 </body>
 </html>
