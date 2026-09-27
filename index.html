@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>来年のカレンダー</title>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 24px; color: #222; background: #fff; }
+  h1 { text-align: center; font-weight: normal; margin: 0 0 24px; }
+  #calendar { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 24px; max-width: 1000px; margin: 0 auto; }
+  h2 { font-size: 1rem; margin: 0 0 8px; text-align: center; }
+  table { width: 100%; border-collapse: collapse; text-align: center; }
+  th, td { padding: 4px 0; font-size: 0.875rem; }
+  th { color: #888; font-weight: normal; border-bottom: 1px solid #ddd; }
+  .sun { color: #d33; }
+  .sat { color: #36c; }
+  .today { background: #222; color: #fff; border-radius: 50%; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<h1 id="title"></h1>
+<div id="calendar"></div>
+<script>
+  const year = new Date().getFullYear() + 1;
+  const today = new Date();
+  const days = ['日', '月', '火', '水', '木', '金', '土'];
+  document.getElementById('title').textContent = year + '年';
+
+  let html = '';
+  for (let m = 0; m < 12; m++) {
+    const first = new Date(year, m, 1).getDay();
+    const last = new Date(year, m + 1, 0).getDate();
+    html += `<section><h2>${m + 1}月</h2><table><tr>`;
+    days.forEach((d, i) => html += `<th class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${d}</th>`);
+    html += '</tr><tr>';
+    for (let i = 0; i < first; i++) html += '<td></td>';
+    for (let d = 1; d <= last; d++) {
+      const w = (first + d - 1) % 7;
+      const isToday = today.getFullYear() === year && today.getMonth() === m && today.getDate() === d;
+      const cls = [w === 0 ? 'sun' : w === 6 ? 'sat' : '', isToday ? 'today' : ''].join(' ').trim();
+      html += `<td class="${cls}">${d}</td>`;
+      if (w === 6 && d < last) html += '</tr><tr>';
+    }
+    html += '</tr></table></section>';
+  }
+  document.getElementById('calendar').innerHTML = html;
+</script>
+</body>
+</html>
